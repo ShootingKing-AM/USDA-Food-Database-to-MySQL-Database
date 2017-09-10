@@ -29,12 +29,12 @@ Prefixes and sufixes can be added to the table names and it can be changed in th
 ## Images
 
 ### Start screen
-![alt text](https://imgur.com/a/uLpkp "Start screen")
+![alt text](http://i.imgur.com/NhnLIpk.png "Start screen")
 
 ### Fail screen
-![alt text](https://imgur.com/PrUTp4Z "Fail screen")
+![alt text](http://i.imgur.com/PrUTp4Z.png "Fail screen")
 
 ### Success screen
-![alt text](https://imgur.com/Mzce8fs "Success screen")
+![alt text](http://i.imgur.com/Mzce8fs.png "Success screen")
 
 Any improvments or sugestions are welcome.
