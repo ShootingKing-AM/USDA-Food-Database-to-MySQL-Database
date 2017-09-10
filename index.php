@@ -7,7 +7,7 @@
  * @author     CSMC Projects
  * @copyright  2017 CSMC Projects
  * @license    https://opensource.org/licenses/MIT  MIT
- * @version    1.0.0
+ * @version    1.0.1
  * @link       
  */
 
@@ -15,31 +15,31 @@ declare(strict_types=1);
 
 /**************************** CONFIGURATION BY THE USER ********************************/
 
-const DOWNLOAD_SR28_PATH = "D:/Git/USDASR28/DB/";
+const DOWNLOAD_SR28_PATH = "Not set";
 const SR28_DOWNLOAD_LINK = "https://www.ars.usda.gov/ARSUserFiles/80400525/Data/SR/SR28/dnload/sr28asc.zip";
-const DB_HOST = "127.0.0.1";
-const DB_USER = "root";
-const DB_PASS = "1234";
-const DATABASE_NAME = "fooddata";
+const DB_HOST = "Not set";
+const DB_USER = "Not set";
+const DB_PASS = "Not set";
+const DATABASE_NAME = "Not set";
 const TABLE_NAME_PREFIX = "";
 const TABLE_NAME_SUFIX = "";
 //The array is formatted as follows {USDA SR28 filename, Name of the table, Number of records in the file}
 const TABLE_NAME_SIZE = array(
-	"SRC_CD.txt" , "SourceCode", 10,
-	"DERIV_CD.txt" , "DataDerivationCodeDescription", 55,
-	"DATA_SRC.txt" , "SourcesOfData", 682,
-	"FOOTNOTE.txt" , "Footnote", 552,
-	"LANGDESC.txt" , "LanguaLFactorsDescription", 774,
-	"NUTR_DEF.txt" , "NutrientDefinition", 150,
-	"FD_GROUP.txt" , "FoodGroupDescription", 25,
-	"FOOD_DES.txt" , "FoodDescription", 8789,
-	"NUT_DATA1.txt" , "NutrientData", 200000,
-	"NUT_DATA2.txt" , "NutrientData", 200000,
-	"NUT_DATA3.txt" , "NutrientData", 200000,
-	"NUT_DATA4.txt" , "NutrientData", 79046,
-	"WEIGHT.txt" , "Weight", 15438,
-	"LANGUAL.txt" , "LanguaLFactor", 38301,
-	"DATSRCLN.txt", "SourcesOfDataLink", 244496
+	"SRC_CD.txt" , "SRC_CD", 10,
+	"DERIV_CD.txt" , "DERIV_CD", 55,
+	"DATA_SRC.txt" , "DATA_SRC", 682,
+	"FOOTNOTE.txt" , "FOOTNOTE", 552,
+	"LANGDESC.txt" , "LANGDESC", 774,
+	"NUTR_DEF.txt" , "NUTR_DEF", 150,
+	"FD_GROUP.txt" , "FD_GROUP", 25,
+	"FOOD_DES.txt" , "FOOD_DES", 8789,
+	"NUT_DATA1.txt" , "NUT_DATA", 200000,
+	"NUT_DATA2.txt" , "NUT_DATA", 200000,
+	"NUT_DATA3.txt" , "NUT_DATA", 200000,
+	"NUT_DATA4.txt" , "NUT_DATA", 79046,
+	"WEIGHT.txt" , "WEIGHT", 15438,
+	"LANGUAL.txt" , "LANGUAL", 38301,
+	"DATSRCLN.txt", "DATSRCLN", 244496
 );
 
 /**********************************************************************/
@@ -92,8 +92,6 @@ class Logger{
 				for($i = 0; $i < count($_SESSION["fooddata_log"]); $i++){
 					$logString .= $_SESSION["fooddata_log"][$i]."";
 				}
-			} else {
-				$logString .= self::format(LogLevel::Success, "Nothing to show.");
 			}
 
 			$logString .= "</pre></div>";
@@ -559,10 +557,21 @@ class Stage{
 		<title>USDA SR28 to MYSQL PHP Script</title>
 	</head>
     <body style="font-family:monospace">
-        <h1 style="font-family: monospace; margin: 5px 5px 0px 5px; padding: 5px; background: gold;">
-            USDA SR28 to MYSQL PHP Script
-        </h1>
-    <?php
+        <div style="font-family: monospace; margin: 5px 5px 0px 5px; padding: 5px; background: gold;">
+            <h1 style="width:500px;display:inline;">
+                USDA SR28 to MYSQL PHP Script
+            </h1>
+            <a href="/index.php?Start"><button style="cursor:auto;border:none; padding: 5px 15px 5px 15px; font-family:Fantasy;
+                    background-color:mediumturquoise;">
+                    Start
+                </button></a>
+            <a href="/index.php?Reset"><button style="cursor:auto;border:none; padding: 5px 15px 5px 15px; font-family:Fantasy;
+					background-color:mediumturquoise;">
+                    Reset
+                </button></a>
+        </div>
+       
+        <?php
 			echo '<div style="font-size: 14px; background-color: #E91E63; margin: 0px 5px 5px 5px; padding: 5px;">';
            if(isset($_GET['Done'])){
 				echo '<p>Success all the tables were created and populated with the USDA SR28 data!</p>';
@@ -574,22 +583,13 @@ class Stage{
 			} else if (isset($_GET['Reset'])){
                 Stage::Reset();
                 Redirects::to(Page::Self);
-            } else if(Stage::Get() == 0){
-				Logger::clear();
-                Stage::SetNext();
-                echo '<p>This script will download and unzip the USDA SR28 database automatically and then create a database and the necessary tables.</p>';
-                echo '<p>Make sure to open the file and configure the database information, download folder and others.</p>';
-				echo '<p>Some datasets are quite large so be patient as they can take a while to process.</p>';
-				echo '<a href="/index.php">
-					<button style="cursor:auto;border:none; padding: 5px 15px 5px 15px; font-family:Fantasy;
-					background-color:mediumturquoise;">Start</button></a>';
-			} else if(Stage::Get() == 1){
+            } else if(Stage::Get() == 1 && isset($_GET["Start"])){
                 echo '<p>Downloading USDA SR28 ASCII data...</p>';
                 Stage::SetNext();
                 Redirects::to(Page::Self);
             } else if(Stage::Get() == 2){
                 $_SESSION["EXECUTION_TIME"] = microtime(true);
-                //FoodDatabase::Download();
+                FoodDatabase::Download();
                 Stage::SetNext();
                 Redirects::to(Page::Self);
             } else if(Stage::Get() == 3){
@@ -620,10 +620,29 @@ class Stage{
                 } else if($parsing_stage >= FoodDatabase::NumberOfTables()){
                     Redirects::to(Page::Done);
                 }
-			}
-			echo '</div>';
-			//Display log
-			Logger::show();
-    ?>
+			} else {
+               //Starting point
+				Logger::clear();
+                echo '<p>This script will download and unzip the USDA SR28 database automatically and then create a database and the necessary tables.</p>';
+                echo '<h2 style="font-family:monospace;">Configuration</h2>';
+                echo '<pre><strong>Download path to USDA SR28 ASCII file:</strong> '.DOWNLOAD_SR28_PATH.'</pre>';
+                echo '<pre><strong>USDA SR28 ASCII file download link:</strong> '.SR28_DOWNLOAD_LINK.'</pre>';
+                echo '<pre><strong>Database configuration:</strong> Host:'.DB_HOST.' | User: '.DB_USER.' | Pass: '.DB_PASS.'</pre>';
+                echo '<pre><strong>Database name:</strong> '.DATABASE_NAME.'</pre>';
+                if(!empty(TABLE_NAME_PREFIX)){ echo '<pre><strong> Table prefix:</strong> '.TABLE_NAME_PREFIX.'</pre>';}
+                if(!empty(TABLE_NAME_SUFIX)){ echo '<pre><strong>Table sufix:</strong> '.TABLE_NAME_SUFIX.'</pre>';}
+                echo '<pre><strong>Table names:</strong></pre><ul>';
+                for($i = 1; $i < count(TABLE_NAME_SIZE); $i = $i + 3){
+                    echo '<li>'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[$i].TABLE_NAME_SUFIX.'</li>';
+                }
+                echo '</ul>';
+                echo '<p>Some datasets are quite large so <strong>be patient</strong> as they can take a while to process.</p>';
+                Stage::Reset();
+                Stage::SetNext();
+            }
+            echo '</div>';
+            //Display log
+            Logger::show();
+        ?>
 </body>
 </html>
