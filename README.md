@@ -26,4 +26,15 @@ const TABLE_NAME_SIZE = array(
 The database will be created if it does not exist. 
 Prefixes and sufixes can be added to the table names and it can be changed in the second column of the TABLE_NAME_SIZE array.
 
+## Images
+
+### Start screen
+![alt text](https://imgur.com/a/uLpkp "Start screen")
+
+### Fail screen
+![alt text](https://imgur.com/PrUTp4Z "Fail screen")
+
+### Success screen
+![alt text](https://imgur.com/Mzce8fs "Success screen")
+
 Any improvments or sugestions are welcome.
