@@ -8,13 +8,13 @@
  * @copyright  2017 CSMC Projects
  * @license    https://opensource.org/licenses/MIT  MIT
  * @version    1.0.1
- * @link       
+ * @link
  */
 
 declare(strict_types=1);
 
 /**************************** CONFIGURATION BY THE USER ********************************/
-
+const ROOT_URL = "Not set";
 const DOWNLOAD_SR28_PATH = "Not set";
 const SR28_DOWNLOAD_LINK = "https://www.ars.usda.gov/ARSUserFiles/80400525/Data/SR/SR28/dnload/sr28asc.zip";
 const DB_HOST = "Not set";
@@ -33,16 +33,17 @@ const TABLE_NAME_SIZE = array(
 	"NUTR_DEF.txt" , "NUTR_DEF", 150,
 	"FD_GROUP.txt" , "FD_GROUP", 25,
 	"FOOD_DES.txt" , "FOOD_DES", 8789,
-	"NUT_DATA1.txt" , "NUT_DATA", 200000,
-	"NUT_DATA2.txt" , "NUT_DATA", 200000,
-	"NUT_DATA3.txt" , "NUT_DATA", 200000,
-	"NUT_DATA4.txt" , "NUT_DATA", 79046,
+	"NUT_DATA1.txt" , "NUT_DATA", 679046,
+	"NUT_DATA2.txt" , "NUT_DATA", 679046,
+	"NUT_DATA3.txt" , "NUT_DATA", 679046,
+	"NUT_DATA4.txt" , "NUT_DATA", 679046,
 	"WEIGHT.txt" , "WEIGHT", 15438,
 	"LANGUAL.txt" , "LANGUAL", 38301,
 	"DATSRCLN.txt", "DATSRCLN", 244496
 );
 
 /**********************************************************************/
+
 session_start();
 ini_set('max_execution_time', '3000');
 ini_set('user_agent', $_SERVER['HTTP_USER_AGENT']);
@@ -110,14 +111,27 @@ class omysqli{
         $cleanObj = htmlentities(strip_tags($this->omysqli->real_escape_string($dirtyObj)));
         return $cleanObj;
     }
-	public function  __construct(){
-		$this->omysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, "fooddata");
-		if($this->omysqli->connect_errno){
-			$this->omysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, "");
+	public function  __construct($create_db = false){
+        if($create_db == true){
+            $this->omysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, "");
+            if ($this->omysqli->connect_error) {
+                die('MySQL Connect Error (' . $this->omysqli->connect_errno . ') '
+                        .$this->omysqli->connect_error);
+            }
+            //Drop old database if it exists
+            if(self::boolExecute("DROP DATABASE ".DATABASE_NAME)){
+                Logger::add("Old database instance dropped.", LogLevel::Success);
+            }
+            //Create new database
             if(!self::boolExecute("CREATE DATABASE ".DATABASE_NAME)){
                 Logger::add('Failed to create database. Make sure the user has permissions to create one.', LogLevel::Error);
             }
-		}
+        }
+		$this->omysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DATABASE_NAME);
+        if ($this->omysqli->connect_error) {
+            die('MySQL Connect Error (' . $this->omysqli->connect_errno . ') '
+                    . $this->omysqli->connect_error);
+        }
 	}
 	public function countPExecute($query){
         //Use omysqli->prepare to set the query
@@ -176,10 +190,10 @@ class omysqli{
                 $stmt->close();
                 return true;
             } else {
-                $stmt->close();
-				if($this->omysqli->errno){
-					Logger::add('Mysql error: '.$this->omysqli->error, LogLevel::Error);
+				if($stmt->errno != 0){
+					Logger::add('Mysql error: '.$stmt->error, LogLevel::Error);
 				}
+                $stmt->close();
                 return false;
             }
         } else {
@@ -212,7 +226,18 @@ abstract class Page
 //A class for redirecting pages
 class Redirects{
 	public static function to($page){
-		echo '<script>window.onload = function () { setTimeout(function(){window.location.href="'.$page.'"},500); }</script>';
+        //If the script failed then reset the script stage
+        if($page == Page::Fail){
+            header('Location: '.ROOT_URL.$page.'');
+            exit();
+        }
+        //Redirect to the appropriate page.
+		echo '<script>
+                window.onload = function () {
+                    setTimeout(function(){window.location.href="'.ROOT_URL.$page.'"},500);
+                    window.scrollTo(0,document.body.scrollHeight);
+                }
+            </script>';
 	}
 }
 
@@ -222,7 +247,7 @@ class FoodDatabase{
 		return count(TABLE_NAME_SIZE) / 3;
 	}
 
-	public static function CreateTables(): void
+	public static function CreateTables()
 	{
 		$omysqli = new omysqli();
 
@@ -230,21 +255,21 @@ class FoodDatabase{
 		$fdt = false;
 
 		//Create the Source Code table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'SourceCode'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*0+1].TABLE_NAME_SUFIX.' (
 			`Src_Cd` CHAR(2) PRIMARY KEY,
 			`SrcCd_Desc` CHAR(60) NOT NULL
 			)');
 		self::TableSuccess('Source Code', $fdt);
 
 		//Create the Data Derivation Code Description table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'DataDerivationCodeDescription'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*1+1].TABLE_NAME_SUFIX.' (
 			`Deriv_Cd` CHAR(4) PRIMARY KEY,
 			`Deriv_Desc` CHAR(120) NOT NULL
 			)');
 		self::TableSuccess('Data Derivation Code Description', $fdt);
 
 		//Create Sources of Data Link table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'SourcesOfData'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*2+1].TABLE_NAME_SUFIX.' (
 			`DataSrc_ID` CHAR(6) PRIMARY KEY,
 			`Authors` CHAR(255),
 			`Title` CHAR(255) NOT NULL,
@@ -258,7 +283,7 @@ class FoodDatabase{
 		self::TableSuccess('Sources Of Data', $fdt);
 
 		//Create the Footnote table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'Footnote'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*3+1].TABLE_NAME_SUFIX.' (
 			`NDB_No` CHAR(5) NOT NULL,
 			`Footnt_No` CHAR(4) NOT NULL,
 			`Footnt_Typ` CHAR(1) NOT NULL,
@@ -268,14 +293,14 @@ class FoodDatabase{
 		self::TableSuccess('Footnote', $fdt);
 
 		//Create the LanguaL Factor Description Format table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'LanguaLFactorsDescription'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*4+1].TABLE_NAME_SUFIX.' (
 			`Factor_Code` CHAR(5) PRIMARY KEY,
 			`Description` CHAR(140) NOT NULL
 			)');
 		self::TableSuccess('LanguaL Factor Description', $fdt);
 
 		//Create the Nutrient Definition table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'NutrientDefinition'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*5+1].TABLE_NAME_SUFIX.' (
 			`Nutr_No` CHAR(3) PRIMARY KEY,
 			`Units` CHAR(7) NOT NULL,
 			`Tagname` CHAR(20),
@@ -286,17 +311,17 @@ class FoodDatabase{
 		self::TableSuccess('Nutrient Definition', $fdt);
 
 		//Create the food group description	table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'FoodGroupDescription'.TABLE_NAME_SUFIX.' (
-								`FdGrp_Cd` CHAR(4) PRIMARY KEY,
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*6+1].TABLE_NAME_SUFIX.' (
+								`FdGrp_Cd` CHAR(4) NOT NULL PRIMARY KEY,
 								`FdGrp_Desc` CHAR(60) NOT NULL)
 								');
 		self::TableSuccess('Food Group Description', $fdt);
 
 		//Create the food description table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'FoodDescription'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*7+1].TABLE_NAME_SUFIX.' (
 								`NDB_No` CHAR(5) PRIMARY KEY,
 								`FdGrp_Cd` CHAR(4) NOT NULL,
-								FOREIGN KEY (`FdGrp_Cd`) REFERENCES FoodGroupDescription(`FdGrp_Cd`),
+								FOREIGN KEY (`FdGrp_Cd`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*6+1].TABLE_NAME_SUFIX.'` (`FdGrp_Cd`),
 								`Long_Desc` CHAR(200) NOT NULL,
 								`Shrt_Desc` CHAR(60) NOT NULL,
 								`ComName` CHAR(100),
@@ -314,7 +339,7 @@ class FoodDatabase{
 		self::TableSuccess('Food Description', $fdt);
 
 		//Create the Nutrient Data table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'NutrientData'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*8+1].TABLE_NAME_SUFIX.' (
 								`NDB_No` CHAR(5) NOT NULL,
 								`Nutr_No` CHAR(3) NOT NULL,
 								`Nutr_Val` DECIMAL(10,3) NOT NULL,
@@ -334,13 +359,13 @@ class FoodDatabase{
 								`AddMod_Date` CHAR(10),
 								`CC` CHAR(1),
 								CONSTRAINT NUT_DATA_PK PRIMARY KEY(`NDB_No`, `Nutr_No`),
-								FOREIGN KEY (`NDB_No`) REFERENCES `FoodDescription` (`NDB_No`),
-								FOREIGN KEY (`Nutr_No`) REFERENCES `NutrientDefinition`(`Nutr_No`)
+								FOREIGN KEY (`NDB_No`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*7+1].TABLE_NAME_SUFIX.'` (`NDB_No`),
+								FOREIGN KEY (`Nutr_No`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*5+1].TABLE_NAME_SUFIX.'` (`Nutr_No`)
 								)');
 		self::TableSuccess('Nutrient Data', $fdt);
 
 		//Create the Weight table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'Weight'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*12+1].TABLE_NAME_SUFIX.' (
 								`NDB_No` CHAR(5) NOT NULL,
 								`Seq` CHAR(2) NOT NULL,
 								`Amount` DECIMAL(5,3) NOT NULL,
@@ -349,66 +374,66 @@ class FoodDatabase{
 								`Num_Data_Pts` INT(3) UNSIGNED,
 								`Std_Dev` DECIMAL(7,3),
 								CONSTRAINT WEIGHT_PK PRIMARY KEY(NDB_No,Seq),
-								FOREIGN KEY (`NDB_No`) REFERENCES `FoodDescription` (`NDB_No`)
+								FOREIGN KEY (`NDB_No`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*7+1].TABLE_NAME_SUFIX.'` (`NDB_No`)
 									)');
 		self::TableSuccess('Weight', $fdt);
 
 		//Create the LanguaL Factor table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'LanguaLFactor'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*13+1].TABLE_NAME_SUFIX.' (
 			`NDB_No` CHAR(5) NOT NULL,
 			`Factor_Code` CHAR(5) NOT NULL,
 			CONSTRAINT LANGUAL_PK PRIMARY KEY(NDB_No, Factor_Code),
-			FOREIGN KEY (`NDB_No`) REFERENCES FoodDescription(`NDB_No`),
-			FOREIGN KEY (`Factor_Code`) REFERENCES LanguaLFactorsDescription(`Factor_Code`)
+			FOREIGN KEY (`NDB_No`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*7+1].TABLE_NAME_SUFIX.'` (`NDB_No`),
+			FOREIGN KEY (`Factor_Code`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*4+1].TABLE_NAME_SUFIX.'` (`Factor_Code`)
 			)');
 		self::TableSuccess('LanguaL Factor', $fdt);
 
 		//Create Sources of Data Link table
-		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.'SourcesOfDataLink'.TABLE_NAME_SUFIX.' (
+		$fdt = $omysqli->boolPExecute('CREATE TABLE IF NOT EXISTS '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*14+1].TABLE_NAME_SUFIX.' (
 								`NDB_No` CHAR(5) NOT NULL,
 								`Nutr_No` CHAR(3) NOT NULL,
 								`DataSrc_ID` CHAR(6) NOT NULL,
 								CONSTRAINT DATSRCLN_PK PRIMARY KEY(NDB_No,Nutr_No,DataSrc_ID),
-								FOREIGN KEY (`NDB_No`) REFERENCES `FoodDescription` (`NDB_No`),
-								FOREIGN KEY (`Nutr_No`) REFERENCES `NutrientDefinition` (`Nutr_No`),
-								FOREIGN KEY (`DataSrc_ID`) REFERENCES `SourcesOfData` (`DataSrc_ID`)
+								FOREIGN KEY (`NDB_No`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*7+1].TABLE_NAME_SUFIX.'` (`NDB_No`),
+								FOREIGN KEY (`Nutr_No`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*5+1].TABLE_NAME_SUFIX.'` (`Nutr_No`),
+								FOREIGN KEY (`DataSrc_ID`) REFERENCES `'.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*2+1].TABLE_NAME_SUFIX.'` (`DataSrc_ID`)
 									)');
 		self::TableSuccess('Sources Of Data Link', $fdt);
 	}
 
-	public static function PopulateDatabase(int $table): void
+	public static function PopulateDatabase(int $table)
 	{
 		$omysqli = new omysqli();
 
 		if($omysqli->boolExecute("LOAD DATA LOCAL INFILE '".DOWNLOAD_SR28_PATH.TABLE_NAME_SIZE[3*$table]."'
-								INTO TABLE ".TABLE_NAME_SIZE[3*$table+1]."
+								INTO TABLE ".TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*$table+1].TABLE_NAME_SUFIX."
 								FIELDS TERMINATED BY '^'
 								OPTIONALLY ENCLOSED BY '~'
 								LINES TERMINATED BY '\\r\\n'") == true)
 		{
 			//Check if there are the correct number of records
-			$record_num = $omysqli->countPExecute("SELECT COUNT(*) FROM ".TABLE_NAME_SIZE[3*$table+1]."");
+			$record_num = $omysqli->countPExecute("SELECT COUNT(*) FROM ".TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*$table+1].TABLE_NAME_SUFIX."");
 			//Success message
-			Logger::add('The file '.TABLE_NAME_SIZE[3*$table].' was successfully parsed with '.(int)$record_num.' out of '.TABLE_NAME_SIZE[3*$table+2].' records added to the '.TABLE_NAME_SIZE[3*$table+1].' table.', LogLevel::Success);
+			Logger::add('The file '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*$table].TABLE_NAME_SUFIX.' was successfully parsed with '.(int)$record_num.' out of '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*$table+2].TABLE_NAME_SUFIX.' records added to the '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*$table+1].TABLE_NAME_SUFIX.' table.', LogLevel::Success);
             Redirects::to("/?Process=ParseTable".($table+1));
         } else {
-			Logger::add('Failed to parse the '.TABLE_NAME_SIZE[3*$table].' file with 0 out of '.TABLE_NAME_SIZE[3*$table+2].' records added to the '.TABLE_NAME_SIZE[3*$table+1].' table.', LogLevel::Error);
-			Redirects::to("/?Process=Failed");
+			Logger::add('Failed to parse the '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*$table].TABLE_NAME_SUFIX.' file with 0 out of '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*$table+2].TABLE_NAME_SUFIX.' records added to the '.TABLE_NAME_PREFIX.TABLE_NAME_SIZE[3*$table+1].TABLE_NAME_SUFIX.' table.', LogLevel::Error);
+			Redirects::to("/?Failed");
 		}
 	}
 
-	public static function TableSuccess($table_name, &$fdt): void
+	public static function TableSuccess($table_name, &$fdt)
 	{
 		if ($fdt){
 			Logger::add('The '.$table_name.' was created successfully.', LogLevel::Success);
 			$fdt = false;
 		} else {
 			Logger::add('Failed to create the '.$table_name.' table.', LogLevel::Error);
-			Redirects::to("/?Process=Failed");
+			Redirects::to("/?Failed");
 		}
 	}
 
-    public static function Download(): void{
+    public static function Download(){
         //Download the file
         $zipFile = DOWNLOAD_SR28_PATH."sr28data.zip";
 
@@ -472,7 +497,7 @@ class FoodDatabase{
         $handle = @fopen ($source, "r");
         if($handle != true){
             Logger::add("Failed to split the NUT_DATA.txt file.", LogLevel::Error);
-            Redirects::to("/?Process=Failed");
+            Redirects::to("/?Failed");
             return;
         }
         while (!feof ($handle)) {
@@ -507,17 +532,15 @@ class FoodDatabase{
     }
 
     public static function CreateDatabase(){
-        //The constructor of this class creates the database so we can connect to it
-        $omysqli = new omysqli();
-
+        //Create a new mysqli connection and create a the database (true)
+        $omysqli = new omysqli(true);
 		if($omysqli != NULL){
-			Logger::add("Database created with name ".DATABASE_NAME.".", LogLevel::Success);
-        } else {
-			Logger::add('Failed to create the database '.DATABASE_NAME.'.
-            Please make sure the user has the necessary credentials and the database does not exist already.', LogLevel::Error);
-			Redirects::to(Page::Fail);
-            exit();
-		}
+             Logger::add("Database created with name ".DATABASE_NAME.".", LogLevel::Success);
+             return;
+        }
+        Logger::add('Failed to create the database '.DATABASE_NAME.'. Please make sure the user has the necessary credentials and the database does not exist already.',
+            LogLevel::Error);
+        Redirects::to(Page::Fail);
     }
 }
 
@@ -536,7 +559,7 @@ class Stage{
         return $_SESSION['STAGE'];
     }
 
-    public static function Reset(): void{
+    public static function Reset(){
          $_SESSION['STAGE'] = 0;
          $_SESSION['LAST_PARSED'] = -1;
     }
@@ -561,11 +584,11 @@ class Stage{
             <h1 style="width:500px;display:inline;">
                 USDA SR28 to MYSQL PHP Script
             </h1>
-            <a href="/index.php?Start"><button style="cursor:auto;border:none; padding: 5px 15px 5px 15px; font-family:Fantasy;
+            <a href="<?php echo ROOT_URL; ?>/index.php?Start"><button style="cursor:auto;border:none; padding: 5px 15px 5px 15px; font-family:Fantasy;
                     background-color:mediumturquoise;">
                     Start
                 </button></a>
-            <a href="/index.php?Reset"><button style="cursor:auto;border:none; padding: 5px 15px 5px 15px; font-family:Fantasy;
+            <a href="<?php echo ROOT_URL; ?>/index.php?Reset"><button style="cursor:auto;border:none; padding: 5px 15px 5px 15px; font-family:Fantasy;
 					background-color:mediumturquoise;">
                     Reset
                 </button></a>
@@ -577,9 +600,9 @@ class Stage{
 				echo '<p>Success all the tables were created and populated with the USDA SR28 data!</p>';
 				echo '<p>Execution time: '.(microtime(true) - $_SESSION["EXECUTION_TIME"]).' seconds.</p>';
 			} else if(isset($_GET['Failed'])){
-				echo '<p>Failed to execute some task, check the log for more information.</p>';
+				Stage::Reset();
+                echo '<p>Failed to execute some task, check the log for more information.</p>';
 				echo '<p>Execution time: '.(microtime(true) - $_SESSION["EXECUTION_TIME"]).' seconds.</p>';
-                Stage::Reset();
 			} else if (isset($_GET['Reset'])){
                 Stage::Reset();
                 Redirects::to(Page::Self);
