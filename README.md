@@ -1,5 +1,5 @@
 # USDASR28 ASCII to MySQL PHP Script
-A PHP script that automatically downloads and parses the USDA SR28 ASCII data files into a MySQL database.
+A PHP script that automatically downloads and parses the (Food items database) USDA SR28 ASCII data files into a MySQL database.
 
 The script runs as of now on PHP 7.1.0.
 
