@@ -123,7 +123,7 @@ class omysqli{
                 Logger::add("Old database instance dropped.", LogLevel::Success);
             }
             //Create new database
-            if(!self::boolExecute("CREATE DATABASE ".DATABASE_NAME)){
+            if(!self::boolExecute("CREATE DATABASE ".DATABASE_NAME. " CHARACTER SET ascii")){
                 Logger::add('Failed to create database. Make sure the user has permissions to create one.', LogLevel::Error);
             }
         }
